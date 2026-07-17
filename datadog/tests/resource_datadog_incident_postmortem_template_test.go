@@ -3,7 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
+
+	"github.com/terraform-providers/terraform-provider-datadog/datadog/fwprovider"
+	"github.com/terraform-providers/terraform-provider-datadog/datadog/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
@@ -15,29 +19,31 @@ import (
 
 func TestAccDatadogIncidentPostmortemTemplate_Basic(t *testing.T) {
 	t.Parallel()
-	ctx, accProviders := testAccProviders(context.Background(), t)
-	uniq := uniqueEntityName(ctx, t)
-	accProvider := testAccProvider(t, accProviders)
+	ctx, providers, accProviders := testAccFrameworkMuxProviders(context.Background(), t)
+	name := fmt.Sprintf("test-postmortem-template-%d", clockFromContext(ctx).Now().Unix())
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:                 func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: accProviders,
-		CheckDestroy:             testAccCheckDatadogIncidentPostmortemTemplateDestroy(accProvider),
+		ProtoV6ProviderFactories: accProviders,
+		CheckDestroy:             testAccCheckDatadogIncidentPostmortemTemplateDestroy(providers.frameworkProvider),
 		Steps: []resource.TestStep{
 			{
-				Config: testAccCheckDatadogIncidentPostmortemTemplateConfig(uniq),
+				Config: testAccCheckDatadogIncidentPostmortemTemplateConfig(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDatadogIncidentPostmortemTemplateExists(accProvider, "datadog_incident_postmortem_template.foo"),
-					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "name", uniq),
+					testAccCheckDatadogIncidentPostmortemTemplateExists(providers.frameworkProvider),
+					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "name", name),
 					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "location", "datadog_notebooks"),
+					resource.TestCheckResourceAttrSet("datadog_incident_postmortem_template.foo", "id"),
 					resource.TestCheckResourceAttrSet("datadog_incident_postmortem_template.foo", "incident_type"),
+					resource.TestCheckResourceAttrSet("datadog_incident_postmortem_template.foo", "created"),
+					resource.TestCheckResourceAttrSet("datadog_incident_postmortem_template.foo", "modified"),
 				),
 			},
 			{
-				Config: testAccCheckDatadogIncidentPostmortemTemplateConfigUpdated(uniq),
+				Config: testAccCheckDatadogIncidentPostmortemTemplateConfigUpdated(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckDatadogIncidentPostmortemTemplateExists(accProvider, "datadog_incident_postmortem_template.foo"),
-					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "name", uniq+"-updated"),
+					testAccCheckDatadogIncidentPostmortemTemplateExists(providers.frameworkProvider),
+					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "name", name+"-updated"),
 					resource.TestCheckResourceAttr("datadog_incident_postmortem_template.foo", "is_default", "true"),
 				),
 			},
@@ -45,6 +51,26 @@ func TestAccDatadogIncidentPostmortemTemplate_Basic(t *testing.T) {
 				ResourceName:      "datadog_incident_postmortem_template.foo",
 				ImportState:       true,
 				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+// TestAccDatadogIncidentPostmortemTemplate_LocationSettingsMismatch asserts the
+// plan-time ValidateConfig guard rejects settings that don't match the location
+// before any API call is made.
+func TestAccDatadogIncidentPostmortemTemplate_LocationSettingsMismatch(t *testing.T) {
+	t.Parallel()
+	ctx, _, accProviders := testAccFrameworkMuxProviders(context.Background(), t)
+	name := fmt.Sprintf("test-postmortem-template-%d", clockFromContext(ctx).Now().Unix())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:                 func() { testAccPreCheck(t) },
+		ProtoV6ProviderFactories: accProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccCheckDatadogIncidentPostmortemTemplateConfigMismatch(name),
+				ExpectError: regexp.MustCompile(`google_docs_postmortem_settings may only be set when location is "google_docs"`),
 			},
 		},
 	})
@@ -77,51 +103,68 @@ resource "datadog_incident_postmortem_template" "foo" {
 }`, uniq, uniq)
 }
 
-func testAccCheckDatadogIncidentPostmortemTemplateExists(accProvider func() (*schemaProvider, error), resourceName string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		provider, _ := accProvider()
-		apiInstances := provider.DatadogApiInstances
-		auth := provider.Auth
+func testAccCheckDatadogIncidentPostmortemTemplateConfigMismatch(uniq string) string {
+	return fmt.Sprintf(`
+resource "datadog_incident_type" "foo" {
+  name = "%s-type"
+}
 
-		rs, ok := s.RootModule().Resources[resourceName]
-		if !ok {
-			return fmt.Errorf("resource %s not found", resourceName)
-		}
-		id, err := parseUUID(rs.Primary.ID)
-		if err != nil {
-			return err
-		}
-		_, httpResp, err := apiInstances.GetIncidentsApiV2().GetIncidentPostmortemTemplate(auth, id)
-		if err != nil {
-			return fmt.Errorf("received an error retrieving incident postmortem template: %s (HTTP %v)", err, httpResp)
-		}
-		return nil
+resource "datadog_incident_postmortem_template" "foo" {
+  name          = "%s"
+  location      = "datadog_notebooks"
+  incident_type = datadog_incident_type.foo.id
+
+  google_docs_postmortem_settings {
+    account_id       = "123456"
+    parent_folder_id = "789012"
+  }
+}`, uniq, uniq)
+}
+
+func testAccCheckDatadogIncidentPostmortemTemplateExists(accProvider *fwprovider.FrameworkProvider) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		apiInstances := accProvider.DatadogApiInstances
+		auth := accProvider.Auth
+		return incidentPostmortemTemplateExistsHelper(auth, s, apiInstances)
 	}
 }
 
-func testAccCheckDatadogIncidentPostmortemTemplateDestroy(accProvider func() (*schemaProvider, error)) resource.TestCheckFunc {
+func testAccCheckDatadogIncidentPostmortemTemplateDestroy(accProvider *fwprovider.FrameworkProvider) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		provider, _ := accProvider()
-		apiInstances := provider.DatadogApiInstances
-		auth := provider.Auth
+		apiInstances := accProvider.DatadogApiInstances
+		auth := accProvider.Auth
+		return incidentPostmortemTemplateDestroyHelper(auth, s, apiInstances)
+	}
+}
 
-		for _, rs := range s.RootModule().Resources {
-			if rs.Type != "datadog_incident_postmortem_template" {
+func incidentPostmortemTemplateExistsHelper(ctx context.Context, s *terraform.State, apiInstances *utils.ApiInstances) error {
+	api := apiInstances.GetIncidentsApiV2()
+	for _, r := range s.RootModule().Resources {
+		if r.Type != "datadog_incident_postmortem_template" {
+			continue
+		}
+		_, httpResp, err := api.GetIncidentPostmortemTemplate(ctx, parseUUID(r.Primary.ID))
+		if err != nil {
+			return utils.TranslateClientError(err, httpResp, "error retrieving incident postmortem template")
+		}
+	}
+	return nil
+}
+
+func incidentPostmortemTemplateDestroyHelper(ctx context.Context, s *terraform.State, apiInstances *utils.ApiInstances) error {
+	api := apiInstances.GetIncidentsApiV2()
+	for _, r := range s.RootModule().Resources {
+		if r.Type != "datadog_incident_postmortem_template" {
+			continue
+		}
+		_, httpResp, err := api.GetIncidentPostmortemTemplate(ctx, parseUUID(r.Primary.ID))
+		if err != nil {
+			if httpResp != nil && httpResp.StatusCode == 404 {
 				continue
 			}
-			id, err := parseUUID(rs.Primary.ID)
-			if err != nil {
-				return err
-			}
-			_, httpResp, err := apiInstances.GetIncidentsApiV2().GetIncidentPostmortemTemplate(auth, id)
-			if err != nil {
-				if httpResp != nil && httpResp.StatusCode == 404 {
-					continue
-				}
-				return fmt.Errorf("received an error retrieving incident postmortem template: %s", err)
-			}
-			return fmt.Errorf("incident postmortem template still exists")
+			return utils.TranslateClientError(err, httpResp, "error retrieving incident postmortem template")
 		}
-		return nil
+		return fmt.Errorf("incident postmortem template still exists")
 	}
+	return nil
 }

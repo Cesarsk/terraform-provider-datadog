@@ -22,8 +22,9 @@ import (
 )
 
 var (
-	_ resource.ResourceWithConfigure   = &incidentPostmortemTemplateResource{}
-	_ resource.ResourceWithImportState = &incidentPostmortemTemplateResource{}
+	_ resource.ResourceWithConfigure      = &incidentPostmortemTemplateResource{}
+	_ resource.ResourceWithImportState    = &incidentPostmortemTemplateResource{}
+	_ resource.ResourceWithValidateConfig = &incidentPostmortemTemplateResource{}
 )
 
 type incidentPostmortemTemplateResource struct {
@@ -163,6 +164,53 @@ func (r *incidentPostmortemTemplateResource) Configure(_ context.Context, reques
 	}
 	r.Api = providerData.DatadogApiInstances.GetIncidentsApiV2()
 	r.Auth = providerData.Auth
+}
+
+func (r *incidentPostmortemTemplateResource) ValidateConfig(ctx context.Context, request resource.ValidateConfigRequest, response *resource.ValidateConfigResponse) {
+	var cfg incidentPostmortemTemplateModel
+	response.Diagnostics.Append(request.Config.Get(ctx, &cfg)...)
+	if response.Diagnostics.HasError() {
+		return
+	}
+
+	// location is optional and defaults to datadog_notebooks server-side. If it is
+	// unknown at plan time we can't validate the pairing yet.
+	if cfg.Location.IsUnknown() {
+		return
+	}
+	location := "datadog_notebooks"
+	if !cfg.Location.IsNull() {
+		location = cfg.Location.ValueString()
+	}
+
+	if cfg.Confluence != nil && location != "confluence" {
+		response.Diagnostics.AddAttributeError(
+			path.Root("confluence_postmortem_settings"),
+			"Invalid postmortem template configuration",
+			fmt.Sprintf("confluence_postmortem_settings may only be set when location is \"confluence\", got %q.", location),
+		)
+	}
+	if cfg.GoogleDocs != nil && location != "google_docs" {
+		response.Diagnostics.AddAttributeError(
+			path.Root("google_docs_postmortem_settings"),
+			"Invalid postmortem template configuration",
+			fmt.Sprintf("google_docs_postmortem_settings may only be set when location is \"google_docs\", got %q.", location),
+		)
+	}
+	if location == "confluence" && cfg.Confluence == nil {
+		response.Diagnostics.AddAttributeError(
+			path.Root("confluence_postmortem_settings"),
+			"Invalid postmortem template configuration",
+			"confluence_postmortem_settings is required when location is \"confluence\".",
+		)
+	}
+	if location == "google_docs" && cfg.GoogleDocs == nil {
+		response.Diagnostics.AddAttributeError(
+			path.Root("google_docs_postmortem_settings"),
+			"Invalid postmortem template configuration",
+			"google_docs_postmortem_settings is required when location is \"google_docs\".",
+		)
+	}
 }
 
 func (r *incidentPostmortemTemplateResource) buildAttributes(plan *incidentPostmortemTemplateModel) datadogV2.PostmortemTemplateAttributesRequest {
