@@ -3,12 +3,12 @@
 page_title: "datadog_incident_user_defined_role Resource - terraform-provider-datadog"
 subcategory: ""
 description: |-
-  Provides a Datadog incident user-defined role resource. This can be used to create and manage custom responder roles that are available for a given incident type. Note: This resource targets an endpoint that is in Preview and is subject to change.
+  Provides a Datadog incident user-defined role resource. This can be used to create and manage custom responder roles that are available for a given incident type. Note: This resource targets an endpoint that is in preview and is subject to change.
 ---
 
 # datadog_incident_user_defined_role (Resource)
 
-Provides a Datadog incident user-defined role resource. This can be used to create and manage custom responder roles that are available for a given incident type. **Note**: This resource targets an endpoint that is in Preview and is subject to change.
+Provides a Datadog incident user-defined role resource. This can be used to create and manage custom responder roles that are available for a given incident type. **Note**: This resource targets an endpoint that is in preview and is subject to change.
 
 ## Example Usage
 
@@ -36,7 +36,7 @@ resource "datadog_incident_user_defined_role" "tech_lead" {
 
 - `incident_type` (String) The ID of the incident type this user-defined role is associated with.
 - `name` (String) The name of the user-defined role. Cannot be a reserved name ("Incident Commander" or "Responder") and must be at most 255 characters.
-- `policy` (Attributes) Policy configuration for the user-defined role. (See [below for nested schema](#nestedatt--policy).)
+- `policy` (Attributes) Policy configuration for the user-defined role. (see [below for nested schema](#nestedatt--policy))
 
 ### Optional
 
