@@ -1,3 +1,0 @@
-```release-note:feature
-**New Resource:** `datadog_incident_user_defined_role`
-```
