@@ -8,7 +8,7 @@ resource "datadog_incident_user_defined_role" "tech_lead" {
   description   = "The technical lead for the incident."
   incident_type = datadog_incident_type.example.id
 
-  policy {
+  policy = {
     is_single = true
   }
 }
