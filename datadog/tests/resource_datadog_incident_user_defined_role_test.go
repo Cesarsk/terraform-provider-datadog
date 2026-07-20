@@ -67,7 +67,7 @@ resource "datadog_incident_user_defined_role" "foo" {
   name          = "%s"
   description   = "Created by terraform"
   incident_type = datadog_incident_type.test.id
-  policy {
+  policy = {
     is_single = true
   }
 }`, roleName, roleName)
@@ -84,7 +84,7 @@ resource "datadog_incident_user_defined_role" "foo" {
   name          = "%s-updated"
   description   = "Updated by terraform"
   incident_type = datadog_incident_type.test.id
-  policy {
+  policy = {
     is_single = false
   }
 }`, roleName, roleName)
