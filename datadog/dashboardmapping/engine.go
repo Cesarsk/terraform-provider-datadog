@@ -112,6 +112,9 @@ type FieldSpec struct {
 	// TypeBlock always uses MaxItems: 1 automatically.
 	MaxItems int
 
+	// MinItems: minimum count for list and TypeBlockList fields (default 0 = unset).
+	MinItems int
+
 	// Sensitive: mask this field in logs and UI
 	Sensitive bool
 
@@ -557,6 +560,7 @@ var scalarWithConditionalFormatsConfig = FormulaRequestConfig{
 var queryTableFormulaRequestConfig = FormulaRequestConfig{
 	ResponseFormat: "scalar",
 	ExtraFields:    queryTableRequestExtraFields,
+	IncludeSort:    true,
 }
 
 // formulaRequestConfigForWidget returns the FormulaRequestConfig for a given widget type.
@@ -649,6 +653,7 @@ var dataSourceToQueryType = map[string]string{
 	"cloud_cost":           "cloud_cost_query",
 	"apm_dependency_stats": "apm_dependency_stats_query",
 	"apm_resource_stats":   "apm_resource_stats_query",
+	"apm_metrics":          "apm_metrics_query",
 }
 
 // isFormulaCapableWidget returns true for widget types that support
@@ -1169,6 +1174,11 @@ func flattenQueryTableRequestJSON(req map[string]interface{}) map[string]interfa
 	}
 	// Old-style request
 	result := FlattenEngineJSON(queryTableOldRequestFields, req)
+	if sortObj, ok := req["sort"].(map[string]interface{}); ok {
+		if s := flattenWidgetSortByJSON(sortObj); len(s) > 0 {
+			result["sort"] = []interface{}{s}
+		}
+	}
 	// text_formats (2D array) needs special handling
 	if textFormats, ok := req["text_formats"].([]interface{}); ok && len(textFormats) > 0 {
 		result["text_formats"] = flattenQueryTableTextFormatsJSON(textFormats)
@@ -2136,6 +2146,11 @@ func buildQueryTableRequestsJSONFromMap(defMap map[string]interface{}) []interfa
 			requests = append(requests, req)
 		} else {
 			req := BuildEngineJSONFromMap(reqMap, queryTableOldRequestFields)
+			if sortMap := getBlockFromMap(reqMap, "sort"); sortMap != nil {
+				if sortJSON := buildWidgetSortByJSONFromMap(sortMap); len(sortJSON) > 0 {
+					req["sort"] = sortJSON
+				}
+			}
 			buildQueryTableTextFormatsJSONFromMap(reqMap, req)
 			requests = append(requests, req)
 		}

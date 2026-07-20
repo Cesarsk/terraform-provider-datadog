@@ -421,6 +421,38 @@ var formulaAndFunctionApmResourceStatsQueryFields = []FieldSpec{
 		Description: "Array of fields to group results by."},
 }
 
+// formulaAndFunctionApmMetricsQueryFields corresponds to OpenAPI
+// FormulaAndFunctionApmMetricsQueryDefinition.
+var formulaAndFunctionApmMetricsQueryFields = []FieldSpec{
+	{HCLKey: "data_source", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "The data source for APM metrics queries.",
+		ValidValues: []string{"apm_metrics"}},
+	{HCLKey: "name", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "Name of this query to use in formulas."},
+	{HCLKey: "stat", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "APM metric stat name.",
+		ValidValues: []string{"errors", "error_rate", "errors_per_second", "latency_avg", "latency_max", "latency_p50", "latency_p75", "latency_p90", "latency_p95", "latency_p99", "latency_p999", "latency_distribution", "hits", "hits_per_second", "total_time", "apdex"}},
+	{HCLKey: "service", Type: TypeString, OmitEmpty: true,
+		Description: "APM service name."},
+	{HCLKey: "peer_tags", Type: TypeStringList, OmitEmpty: true,
+		Description: "Tags to query for a specific downstream entity, such as `peer.service` or `peer.db_instance`."},
+	{HCLKey: "resource_hash", Type: TypeString, OmitEmpty: true,
+		Description: "The hash of a specific resource to filter by."},
+	{HCLKey: "resource_name", Type: TypeString, OmitEmpty: true,
+		Description: "The full name of a specific resource to filter by."},
+	{HCLKey: "operation_name", Type: TypeString, OmitEmpty: true,
+		Description: "Name of the operation on the service. If omitted, the primary operation name is used."},
+	{HCLKey: "operation_mode", Type: TypeString, OmitEmpty: true,
+		Description: "Optional operation mode used to aggregate across operation names."},
+	{HCLKey: "query_filter", Type: TypeString, OmitEmpty: true,
+		Description: "Additional filters for the query using metrics query syntax."},
+	{HCLKey: "group_by", Type: TypeStringList, OmitEmpty: true,
+		Description: "Optional fields to group the query results by."},
+	{HCLKey: "span_kind", Type: TypeString, OmitEmpty: true,
+		Description: "The relationship between the span, its parents, and its children in a trace.",
+		ValidValues: []string{"consumer", "server", "client", "producer", "internal"}},
+}
+
 // formulaAndFunctionSLOQueryFields corresponds to OpenAPI
 // FormulaAndFunctionSLOQueryDefinition.
 var formulaAndFunctionSLOQueryFields = []FieldSpec{
@@ -482,6 +514,9 @@ var formulaAndFunctionQueryFields = []FieldSpec{
 	{HCLKey: "apm_resource_stats_query", Type: TypeBlock, OmitEmpty: true,
 		Description: "The APM Resource Stats query using formulas and functions.",
 		Children:    formulaAndFunctionApmResourceStatsQueryFields},
+	{HCLKey: "apm_metrics_query", Type: TypeBlock, OmitEmpty: true,
+		Description: "The APM metrics query using formulas and functions.",
+		Children:    formulaAndFunctionApmMetricsQueryFields},
 	{HCLKey: "slo_query", Type: TypeBlock, OmitEmpty: true,
 		Description: "The SLO query using formulas and functions.",
 		Children:    formulaAndFunctionSLOQueryFields},
@@ -747,6 +782,37 @@ var timeseriesBackgroundFields = []FieldSpec{
 	{HCLKey: "yaxis", Type: TypeBlock, OmitEmpty: true,
 		Description: "A nested block describing the Y-Axis Controls. Exactly one nested block is allowed using the structure below.",
 		Children:    widgetAxisFields},
+}
+
+// comparisonCustomTimeframeFields corresponds to OpenAPI ComparisonCustomTimeframe.
+var comparisonCustomTimeframeFields = []FieldSpec{
+	{HCLKey: "from", Type: TypeInt, OmitEmpty: false, Required: true,
+		Description: "Start time in milliseconds since epoch."},
+	{HCLKey: "to", Type: TypeInt, OmitEmpty: false, Required: true,
+		Description: "End time in milliseconds since epoch."},
+}
+
+// comparisonDurationFields corresponds to OpenAPI ComparisonDuration.
+var comparisonDurationFields = []FieldSpec{
+	{HCLKey: "type", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "The comparison window type.",
+		ValidValues: []string{"previous_timeframe", "custom_timeframe", "previous_day", "previous_week", "previous_month"}},
+	{HCLKey: "custom_timeframe", Type: TypeBlock, OmitEmpty: true,
+		Description: "Fixed time range to compare against when `type` is `custom_timeframe`.",
+		Children:    comparisonCustomTimeframeFields},
+}
+
+// queryValueWidgetComparisonFields corresponds to OpenAPI QueryValueWidgetComparison.
+var queryValueWidgetComparisonFields = []FieldSpec{
+	{HCLKey: "type", Type: TypeString, OmitEmpty: false, Default: "absolute",
+		Description: "How the delta is expressed.",
+		ValidValues: []string{"absolute", "relative", "both"}},
+	{HCLKey: "directionality", Type: TypeString, OmitEmpty: false, Default: "neutral",
+		Description: "Which direction of change is considered an improvement.",
+		ValidValues: []string{"increase_better", "decrease_better", "neutral"}},
+	{HCLKey: "duration", Type: TypeBlock, OmitEmpty: false, Required: true,
+		Description: "The comparison period.",
+		Children:    comparisonDurationFields},
 }
 
 // scatterplotXYRequestFields corresponds to OpenAPI ScatterPlotRequest.
@@ -1022,6 +1088,9 @@ var queryTableOldRequestFields = append(append([]FieldSpec{
 		ValidValues: []string{"avg", "min", "max", "sum", "last", "area", "l2norm", "percentile"},
 	},
 	{HCLKey: "alias", Type: TypeString, OmitEmpty: true, Description: "The alias for the column name (defaults to metric name)."},
+	{HCLKey: "sort", Type: TypeBlock, OmitEmpty: true, SchemaOnly: true,
+		Description: "The controls for sorting the widget request.",
+		Children:    widgetSortByFields},
 }, queryTableRequestExtraFields...), []FieldSpec{
 	// text_formats: each element is a list of text_format blocks
 	{HCLKey: "text_formats", Type: TypeBlockList, OmitEmpty: true,
@@ -1053,6 +1122,15 @@ var listStreamColumnFields = []FieldSpec{
 // ListStreamQuery.
 var listStreamGroupByFields = []FieldSpec{
 	{HCLKey: "facet", Type: TypeString, OmitEmpty: false, Required: true, Description: "Facet name"},
+}
+
+// listStreamComputeItemsFields corresponds to OpenAPI ListStreamComputeItems.
+var listStreamComputeItemsFields = []FieldSpec{
+	{HCLKey: "facet", Type: TypeString, OmitEmpty: true,
+		Description: "Facet name."},
+	{HCLKey: "aggregation", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "Aggregation value.",
+		ValidValues: []string{"count", "cardinality", "median", "pc75", "pc90", "pc95", "pc98", "pc99", "sum", "min", "max", "avg", "earliest", "latest", "most_frequent"}},
 }
 
 // listStreamSortFields corresponds to the sort block inside ListStreamQuery.
@@ -1096,11 +1174,15 @@ var listStreamQueryFields = []FieldSpec{
 	{HCLKey: "storage", Type: TypeString, OmitEmpty: true, Description: "Storage location (private beta)."},
 	// indexes: OmitEmpty — only present when set in HCL
 	{HCLKey: "indexes", Type: TypeStringList, OmitEmpty: true, Description: "List of indexes."},
+	{HCLKey: "compute", Type: TypeBlockList, OmitEmpty: true, MinItems: 1, MaxItems: 5,
+		Description: "Compute configuration for the List Stream widget. Compute can be used only with the `logs_transaction_stream` source.",
+		Children:    listStreamComputeItemsFields},
 	// group_by: TypeBlockList
 	{
 		HCLKey:      "group_by",
 		Type:        TypeBlockList,
 		OmitEmpty:   true,
+		MaxItems:    4,
 		Description: "Group by configuration for the List Stream widget. Group by can only be used with `logs_pattern_stream` (up to 4 items) or `logs_transaction_stream` (one group by item is required) list stream source.",
 		Children:    listStreamGroupByFields,
 	},
@@ -1112,6 +1194,18 @@ var listStreamQueryFields = []FieldSpec{
 		Description: "The facet and order to sort the data, for example: `{\"column\": \"time\", \"order\": \"desc\"}`.",
 		Children:    listStreamSortFields,
 	},
+	{HCLKey: "states", Type: TypeStringList, OmitEmpty: true,
+		Description: "Issue states to filter by. Usable only with `issue_stream`.",
+		ValidValues: []string{"OPEN", "IGNORED", "ACKNOWLEDGED", "RESOLVED"}},
+	{HCLKey: "assignee_uuids", Type: TypeStringList, OmitEmpty: true,
+		Description: "Assignee UUIDs to filter by. Usable only with `issue_stream`."},
+	{HCLKey: "suspected_causes", Type: TypeStringList, OmitEmpty: true,
+		Description: "Suspected causes to filter by. Usable only with `issue_stream`."},
+	{HCLKey: "team_handles", Type: TypeStringList, OmitEmpty: true,
+		Description: "Team handles to filter by. Usable only with `issue_stream`."},
+	{HCLKey: "persona", Type: TypeString, OmitEmpty: true,
+		Description: "Persona to filter by. Usable only with `issue_stream`.",
+		ValidValues: []string{"all", "browser", "mobile", "backend"}},
 }
 
 // listStreamRequestFields corresponds to OpenAPI
@@ -1446,6 +1540,66 @@ var barChartWidgetRequestFields = append([]FieldSpec{
 // Sankey Widget Field Groups (OpenAPI: SankeyWidgetDefinition)
 // ============================================================
 
+// productAnalyticsAudienceUserSubqueryFields corresponds to OpenAPI
+// ProductAnalyticsAudienceUserSubquery.
+var productAnalyticsAudienceUserSubqueryFields = []FieldSpec{
+	{HCLKey: "name", Type: TypeString, OmitEmpty: true,
+		Description: "The name of the user subquery."},
+	{HCLKey: "query", Type: TypeString, OmitEmpty: true,
+		Description: "The query string for the user subquery."},
+}
+
+// productAnalyticsAudienceSegmentSubqueryFields corresponds to OpenAPI
+// ProductAnalyticsAudienceSegmentSubquery.
+var productAnalyticsAudienceSegmentSubqueryFields = []FieldSpec{
+	{HCLKey: "name", Type: TypeString, OmitEmpty: true,
+		Description: "The name of the segment subquery."},
+	{HCLKey: "segment_id", Type: TypeString, OmitEmpty: true,
+		Description: "The unique identifier of the segment."},
+}
+
+// productAnalyticsAudienceAccountSubqueryFields corresponds to OpenAPI
+// ProductAnalyticsAudienceAccountSubquery.
+var productAnalyticsAudienceAccountSubqueryFields = []FieldSpec{
+	{HCLKey: "name", Type: TypeString, OmitEmpty: true,
+		Description: "The name of the account subquery."},
+	{HCLKey: "query", Type: TypeString, OmitEmpty: true,
+		Description: "The query string for the account subquery."},
+}
+
+// productAnalyticsAudienceFiltersFields corresponds to OpenAPI
+// ProductAnalyticsAudienceFilters.
+var productAnalyticsAudienceFiltersFields = []FieldSpec{
+	{HCLKey: "user", JSONKey: "users", Type: TypeBlockList, OmitEmpty: true,
+		Description: "Product Analytics audience user subqueries.",
+		Children:    productAnalyticsAudienceUserSubqueryFields},
+	{HCLKey: "segment", JSONKey: "segments", Type: TypeBlockList, OmitEmpty: true,
+		Description: "Product Analytics audience segment subqueries.",
+		Children:    productAnalyticsAudienceSegmentSubqueryFields},
+	{HCLKey: "account", JSONKey: "accounts", Type: TypeBlockList, OmitEmpty: true,
+		Description: "Product Analytics audience account subqueries.",
+		Children:    productAnalyticsAudienceAccountSubqueryFields},
+	{HCLKey: "filter_condition", Type: TypeString, OmitEmpty: true,
+		Description: "An optional filter condition applied to the audience subquery."},
+}
+
+// productAnalyticsAudienceOccurrenceFilterFields corresponds to OpenAPI
+// ProductAnalyticsAudienceOccurrenceFilter.
+var productAnalyticsAudienceOccurrenceFilterFields = []FieldSpec{
+	{HCLKey: "operator", Type: TypeString, OmitEmpty: true,
+		Description: "The comparison operator used for the occurrence filter."},
+	{HCLKey: "value", Type: TypeString, OmitEmpty: true,
+		Description: "The threshold value to compare occurrence counts against."},
+}
+
+// sankeyJoinKeysFields corresponds to OpenAPI SankeyJoinKeys.
+var sankeyJoinKeysFields = []FieldSpec{
+	{HCLKey: "primary", Type: TypeString, OmitEmpty: false, Required: true,
+		Description: "Primary join key."},
+	{HCLKey: "secondary", Type: TypeStringList, OmitEmpty: true,
+		Description: "Secondary join keys."},
+}
+
 // sankeyRumQueryFields corresponds to OpenAPI SankeyRumQuery.
 var sankeyRumQueryFields = []FieldSpec{
 	{HCLKey: "data_source", Type: TypeString, OmitEmpty: false, Required: true,
@@ -1466,6 +1620,15 @@ var sankeyRumQueryFields = []FieldSpec{
 		Description: "Number of steps."},
 	{HCLKey: "subquery_id", Type: TypeString, OmitEmpty: true,
 		Description: "Subquery ID."},
+	{HCLKey: "audience_filters", Type: TypeBlock, OmitEmpty: true,
+		Description: "Product Analytics and RUM audience filters.",
+		Children:    productAnalyticsAudienceFiltersFields},
+	{HCLKey: "occurrences", Type: TypeBlock, OmitEmpty: true,
+		Description: "Filter applied to occurrence counts when building a Product Analytics audience.",
+		Children:    productAnalyticsAudienceOccurrenceFilterFields},
+	{HCLKey: "join_keys", Type: TypeBlock, OmitEmpty: true,
+		Description: "Join keys for the Sankey query.",
+		Children:    sankeyJoinKeysFields},
 }
 
 // sankeyNetworkQueryComputeFields corresponds to OpenAPI SankeyNetworkQueryCompute.

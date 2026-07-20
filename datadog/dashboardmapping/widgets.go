@@ -773,6 +773,9 @@ var distributionHistogramQueryFields = []FieldSpec{
 	{HCLKey: "apm_resource_stats_query", Type: TypeBlock, OmitEmpty: true,
 		Description: "APM resource stats query for histogram-mode distribution.",
 		Children:    formulaAndFunctionApmResourceStatsQueryFields},
+	{HCLKey: "apm_metrics_query", Type: TypeBlock, OmitEmpty: true,
+		Description: "APM metrics query for histogram-mode distribution.",
+		Children:    formulaAndFunctionApmMetricsQueryFields},
 }
 
 // DistributionWidgetSpec corresponds to OpenAPI DistributionWidgetDefinition.
@@ -968,6 +971,9 @@ var queryValueRequestFields = append([]FieldSpec{
 	{HCLKey: "conditional_formats", Type: TypeBlockList, OmitEmpty: true,
 		Description: "Conditional formats allow you to set the color of your widget content or background depending on the rule applied to your data. Multiple `conditional_formats` blocks are allowed using the structure below.",
 		Children:    widgetConditionalFormatFields},
+	{HCLKey: "comparison", Type: TypeBlock, OmitEmpty: true,
+		Description: "A change indicator that compares the current value to a historical period.",
+		Children:    queryValueWidgetComparisonFields},
 }, standardQueryFields...)
 
 var QueryValueWidgetSpec = WidgetSpec{
@@ -1500,6 +1506,9 @@ var FunnelWidgetSpec = WidgetSpec{
 			MaxItems:    1,
 			Description: "A nested block describing the request to use when displaying the widget. Only one `request` block is allowed.",
 			Children:    funnelWidgetRequestFields},
+		{HCLKey: "grouped_display", Type: TypeString, OmitEmpty: true,
+			Description: "Display mode for grouped funnel results.",
+			ValidValues: []string{"stacked", "side_by_side"}},
 	},
 }
 
